@@ -1,0 +1,54 @@
+Using Percona XtraBackup
+If you don’t have MySQL Enterprise, you can use Percona XtraBackup, which is compatible with MySQL 8.0.
+Step 1: Install Percona XtraBackup
+For RHEL-based systems (CentOS, Red Hat):
+    yum install percona-xtrabackup-80
+
+For Debian-based systems (Ubuntu, etc.):
+    apt install percona-xtrabackup-80
+Step 2: Stream the Backup
+1. On the destination server (the server where the backup will be restored):
+    - Create a backup directory:
+        mkdir /var/lib/mysqlbackup
+        cd /var/lib/mysqlbackup
+    - Start listening for incoming data:
+        nc -l 9999 | mbstream -x
+
+2. On the source server (the server you're backing up):
+    - Run xtrabackup to create the backup and stream it to the destination server:
+        xtrabackup --backup --user=root --password='your_password' --stream=xbstream | nc destination_host 9999
+    - Replace destination_host with the actual IP or hostname of the destination server.
+Step 3: Restore on Destination Server
+1. Stop MySQL on the destination server:
+    systemctl stop mysql
+
+2. Remove the current MySQL data (ensure backup is complete before running this):
+    rm -r /var/lib/mysql/*
+
+3. Prepare the backup:
+    xtrabackup --prepare --target-dir=/var/lib/mysqlbackup
+
+4. Move the backup to the MySQL data directory:
+    xtrabackup --move-back --target-dir=/var/lib/mysqlbackup
+
+5. Set proper ownership:
+    chown -R mysql:mysql /var/lib/mysql
+
+6. Start MySQL:
+    systemctl start mysql
+Summary of Commands
+On the destination server:
+    mkdir /var/lib/mysqlbackup
+    cd /var/lib/mysqlbackup
+    nc -l 9999 | mbstream -x
+
+On the source server:
+    xtrabackup --backup --user=root --password='your_password' --stream=xbstream | nc destination_host 9999
+
+On the destination server (after streaming is complete):
+    systemctl stop mysql
+    rm -r /var/lib/mysql/*
+    xtrabackup --prepare --target-dir=/var/lib/mysqlbackup
+    xtrabackup --move-back --target-dir=/var/lib/mysqlbackup
+    chown -R mysql:mysql /var/lib/mysql
+    systemctl start mysql
